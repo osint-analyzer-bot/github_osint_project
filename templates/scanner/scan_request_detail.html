@@ -1,0 +1,515 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Детали сканирования #{{ scan_request.id }}</h2>
+            <div>
+                <a href="{% url 'scan_requests_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Назад к списку
+                </a>
+                {% if scan_request.status == 'COMPLETED' and scan_request.scan_results.exists %}
+                <button class="btn btn-outline-success ms-2" onclick="exportResults()">
+                    <i class="fas fa-download"></i> Экспорт результатов
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Статус сканирования -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Статус сканирования</h5>
+                <span class="badge {% if scan_request.status == 'COMPLETED' %}bg-success
+                                  {% elif scan_request.status == 'SCANNING' %}bg-warning
+                                  {% elif scan_request.status == 'DOWNLOADING' %}bg-info
+                                  {% elif scan_request.status == 'FAILED' %}bg-danger
+                                  {% else %}bg-secondary{% endif %} fs-6">
+                    {% if scan_request.status == 'COMPLETED' %}Завершено
+                    {% elif scan_request.status == 'SCANNING' %}Сканирование
+                    {% elif scan_request.status == 'DOWNLOADING' %}Скачивание
+                    {% elif scan_request.status == 'FAILED' %}Ошибка
+                    {% else %}В ожидании{% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Статус:</th>
+                                <td>
+                                    {% if scan_request.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">Завершено</span>
+                                    {% elif scan_request.status == 'SCANNING' %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-spinner fa-spin"></i> В процессе сканирования
+                                        </span>
+                                    {% elif scan_request.status == 'DOWNLOADING' %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-cloud-download-alt"></i> Скачивание репозитория
+                                        </span>
+                                    {% elif scan_request.status == 'FAILED' %}
+                                        <span class="badge bg-danger">Ошибка</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">В ожидании</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if scan_request.error_message %}
+                            <tr>
+                                <th>Ошибка:</th>
+                                <td><span class="text-danger">{{ scan_request.error_message }}</span></td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th>Создано:</th>
+                                <td>{{ scan_request.created_at|date:"d.m.Y H:i" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Обновлено:</th>
+                                <td>{{ scan_request.updated_at|date:"d.m.Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Длительность:</th>
+                                <td>
+                                    {% if scan_request.status == 'COMPLETED' or scan_request.status == 'FAILED' %}
+                                        {{ scan_request.created_at|timesince:scan_request.updated_at }}
+                                    {% else %}
+                                        {{ scan_request.created_at|timesince }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if scan_request.local_path %}
+                            <tr>
+                                <th>Локальный путь:</th>
+                                <td><code class="text-truncate" style="max-width: 200px;">{{ scan_request.local_path }}</code></td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+
+                {% if scan_request.status == 'SCANNING' or scan_request.status == 'DOWNLOADING' %}
+                <div class="progress mt-3" style="height: 10px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <div class="text-center mt-2">
+                    <small class="text-muted">
+                        {% if scan_request.status == 'DOWNLOADING' %}
+                            Скачивание репозитория... Это может занять несколько минут.
+                        {% else %}
+                            Сканирование кода... Это может занять несколько минут.
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Информация о запросе -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Информация о запросе</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Репозиторий:</th>
+                                <td>
+                                    <a href="{{ scan_request.repository_url }}" target="_blank" class="text-break">
+                                        {{ scan_request.repository_url }}
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Тип сканирования:</th>
+                                <td>
+                                    <span class="badge {% if scan_request.scan_type == 'SECRETS' %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                                        {{ scan_request.get_scan_type_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <th width="40%">Глубина:</th>
+                                <td>
+                                    <span class="badge {% if scan_request.scan_depth == 'DEEP' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ scan_request.get_scan_depth_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>История коммитов:</th>
+                                <td>
+                                    {% if scan_request.include_history %}
+                                        <span class="badge bg-success">Включена</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Отключена</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика результатов -->
+        {% if scan_request.status == 'COMPLETED' %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center bg-light">
+                    <div class="card-body">
+                        <h3 class="text-primary">{{ scan_results|length }}</h3>
+                        <p class="mb-0">Всего находок</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-light">
+                    <div class="card-body">
+                        <h3 class="text-success">{{ scan_results|length|default:0 }}</h3>
+                        <p class="mb-0">Успешных сканирований</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-light">
+                    <div class="card-body">
+                        <h3 class="text-warning">
+                            {{ scan_results|dictsort:"confidence"|length|default:0 }}
+                        </h3>
+                        <p class="mb-0">С высокой уверенностью</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center bg-light">
+                    <div class="card-body">
+                        <h3 class="text-info">
+                            {{ scan_results.values_list|dictsort:"file_path"|length|default:0 }}
+                        </h3>
+                        <p class="mb-0">Уникальных файлов</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Результаты сканирования -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Результаты сканирования</h5>
+                <span class="badge bg-primary">{{ scan_results.count }}</span>
+            </div>
+            <div class="card-body">
+                {% if scan_results %}
+                <div class="table-responsive">
+                    <table class="table table-hover" id="resultsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Статус</th>
+                                <th>Тип</th>
+                                <th>Уверенность</th>
+                                <th>Файл</th>
+                                <th>Строка</th>
+                                <th>Описание</th>
+                                <th>Детали</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in scan_results %}
+                            <tr class="{% if result.confidence == 'high' %}table-warning{% endif %}">
+                                <td>
+                                    {% if result.status %}
+                                        <span class="badge bg-success">Найдено</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Не найдено</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if result.bug_type == 'SECRETS' %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                                        {{ result.get_bug_type_display }}
+                                    </span>
+                                    {% if result.secret_type %}
+                                    <br>
+                                    <small class="text-muted" title="{{ result.secret_type }}">
+                                        {{ result.secret_type|truncatechars:30 }}
+                                    </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if result.confidence %}
+                                        {% if result.confidence == 'high' %}
+                                            <span class="badge bg-danger" title="Высокая уверенность">
+                                                <i class="fas fa-exclamation-triangle"></i> Высокая
+                                            </span>
+                                        {% elif result.confidence == 'medium' %}
+                                            <span class="badge bg-warning text-dark" title="Средняя уверенность">
+                                                Средняя
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-info" title="Низкая уверенность">
+                                                Низкая
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">Не указана</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="font-monospace text-truncate" 
+                                          style="max-width: 200px; display: inline-block; vertical-align: bottom;"
+                                          title="{{ result.file_path }}">
+                                        {{ result.file_path }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if result.str_number > 0 %}
+                                        <span class="badge bg-dark">#{{ result.str_number }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if result.description %}
+                                        <span title="{{ result.description }}">
+                                            {{ result.description|truncatechars:50 }}
+                                        </span>
+                                    {% elif result.error_message %}
+                                        <span class="text-danger" title="{{ result.error_message }}">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            {{ result.error_message|truncatechars:50 }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">Нет описания</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if result.raw_context or result.description %}
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#detailModal{{ result.id }}">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+
+                            <!-- Modal для деталей -->
+                            {% if result.raw_context or result.description %}
+                            <div class="modal fade" id="detailModal{{ result.id }}" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Детали находки</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <table class="table table-borderless">
+                                                <tr>
+                                                    <th width="30%">Файл:</th>
+                                                    <td><code>{{ result.file_path }}</code></td>
+                                                </tr>
+                                                {% if result.str_number > 0 %}
+                                                <tr>
+                                                    <th>Строка:</th>
+                                                    <td>{{ result.str_number }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                {% if result.secret_type %}
+                                                <tr>
+                                                    <th>Тип секрета:</th>
+                                                    <td>{{ result.secret_type }}</td>
+                                                </tr>
+                                                {% endif %}
+                                                {% if result.confidence %}
+                                                <tr>
+                                                    <th>Уверенность:</th>
+                                                    <td>
+                                                        <span class="badge {% if result.confidence == 'high' %}bg-danger
+                                                                      {% elif result.confidence == 'medium' %}bg-warning text-dark
+                                                                      {% else %}bg-info{% endif %}">
+                                                            {{ result.get_confidence_display }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                            </table>
+
+                                            {% if result.description %}
+                                            <div class="mb-3">
+                                                <h6>Описание:</h6>
+                                                <div class="alert alert-info">
+                                                    {{ result.description }}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+
+                                            {% if result.raw_context %}
+                                            <div>
+                                                <h6>Контекст:</h6>
+                                                <pre class="bg-dark text-light p-3 rounded" style="font-size: 0.8rem; max-height: 300px; overflow-y: auto;"><code>{{ result.raw_context }}</code></pre>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Фильтры для таблицы -->
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="filterTable('all')">
+                                Все ({{ scan_results.count }})
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="filterTable('found')">
+                                Найдено ({{ scan_results|length }})
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="filterTable('high')">
+                                Высокая уверенность ({{ scan_results|dictsort:"confidence"|length }})
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <small class="text-muted">
+                            Обновлено: {{ scan_request.updated_at|date:"d.m.Y H:i" }}
+                        </small>
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="text-center py-5">
+                    {% if scan_request.status == 'COMPLETED' %}
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5>Потенциальных уязвимостей не найдено</h5>
+                        <p class="text-muted">Сканирование завершено успешно, но проблем не обнаружено.</p>
+                    {% elif scan_request.status == 'FAILED' %}
+                        <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                        <h5>Сканирование завершилось с ошибкой</h5>
+                        <p class="text-muted">{{ scan_request.error_message }}</p>
+                        <a href="{% url 'create_scan_request' %}" class="btn btn-primary">
+                            Попробовать снова
+                        </a>
+                    {% else %}
+                        <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+                        <h5>Сканирование выполняется</h5>
+                        <p class="text-muted">
+                            {% if scan_request.status == 'DOWNLOADING' %}
+                                Идет скачивание репозитория. Это может занять несколько минут в зависимости от размера репозитория.
+                            {% else %}
+                                Идет анализ кода. Пожалуйста, подождите...
+                            {% endif %}
+                        </p>
+                        <button class="btn btn-outline-primary" onclick="location.reload()">
+                            <i class="fas fa-redo"></i> Обновить страницу
+                        </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Авто-обновление для активных сканирований -->
+{% if scan_request.status == 'DOWNLOADING' or scan_request.status == 'SCANNING' %}
+<script>
+// Авто-обновление каждые 10 секунд для активных сканирований
+setTimeout(function() {
+    location.reload();
+}, 10000);
+</script>
+{% endif %}
+
+<script>
+function filterTable(filterType) {
+    const rows = document.querySelectorAll('#resultsTable tbody tr');
+    rows.forEach(row => {
+        switch(filterType) {
+            case 'all':
+                row.style.display = '';
+                break;
+            case 'found':
+                const statusBadge = row.querySelector('.badge.bg-success');
+                row.style.display = statusBadge ? '' : 'none';
+                break;
+            case 'high':
+                const confidenceBadge = row.querySelector('.badge.bg-danger');
+                row.style.display = confidenceBadge ? '' : 'none';
+                break;
+        }
+    });
+}
+
+function exportResults() {
+    // Простая реализация экспорта в JSON
+    const results = [
+        {% for result in scan_results %}
+        {
+            file_path: "{{ result.file_path }}",
+            line_number: {{ result.str_number }},
+            bug_type: "{{ result.bug_type }}",
+            secret_type: "{{ result.secret_type|default:'' }}",
+            confidence: "{{ result.confidence|default:'' }}",
+            description: "{{ result.description|default:'' }}",
+            status: {{ result.status|yesno:"true,false" }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(results, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "scan_results_{{ scan_request.id }}.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+}
+
+// Добавляем иконки FontAwesome (если еще не подключены)
+if (!document.querySelector('link[href*="font-awesome"]')) {
+    const faLink = document.createElement('link');
+    faLink.rel = 'stylesheet';
+    faLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
+    document.head.appendChild(faLink);
+}
+</script>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+.font-monospace {
+    font-family: 'Courier New', monospace;
+}
+.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+@keyframes progress-bar-stripes {
+    0% { background-position: 1rem 0; }
+    100% { background-position: 0 0; }
+}
+</style>
+{% endblock %}

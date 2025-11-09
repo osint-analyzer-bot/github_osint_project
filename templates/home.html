@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto text-center">
+        <h1>Добро пожаловать в GitHub OSINT Scanner</h1>
+        <p class="lead">
+            {% if user.is_authenticated %}
+                Вы успешно вошли в систему. Теперь вы можете сканировать GitHub репозитории на наличие уязвимостей.
+            {% else %}
+                Пожалуйста, войдите или зарегистрируйтесь для использования сканера.
+            {% endif %}
+        </p>
+
+        {% if user.is_authenticated %}
+        <div class="mt-4">
+            <a href="{% url 'create_scan_request' %}" class="btn btn-primary btn-lg me-3">Начать сканирование</a>
+            <a href="{% url 'scan_requests_list' %}" class="btn btn-outline-secondary btn-lg">Мои сканирования</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if user.is_authenticated %}
+<div class="row mt-5">
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Поиск секретов</h5>
+                <p class="card-text">Обнаружение API ключей, токенов и других секретов в коде</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Анализ зависимостей</h5>
+                <p class="card-text">Проверка уязвимостей в используемых библиотеках и пакетах</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Глубокая проверка</h5>
+                <p class="card-text">Анализ истории коммитов и всех веток репозитория</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

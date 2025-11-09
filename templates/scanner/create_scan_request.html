@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h2>Новый запрос на сканирование</h2>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.repository_url.id_for_label }}" class="form-label">
+                            {{ form.repository_url.label }}
+                        </label>
+                        {{ form.repository_url }}
+                        {% if form.repository_url.help_text %}
+                        <div class="form-text">{{ form.repository_url.help_text }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.scan_type.id_for_label }}" class="form-label">
+                            {{ form.scan_type.label }}
+                        </label>
+                        {{ form.scan_type }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.scan_depth.id_for_label }}" class="form-label">
+                            {{ form.scan_depth.label }}
+                        </label>
+                        {{ form.scan_depth }}
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        {{ form.include_history }}
+                        <label for="{{ form.include_history.id_for_label }}" class="form-check-label">
+                            {{ form.include_history.label }}
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Запустить сканирование</button>
+                    <a href="{% url 'scan_requests_list' %}" class="btn btn-secondary">Отмена</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

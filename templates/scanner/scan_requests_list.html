@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Мои запросы на сканирование</h2>
+            <a href="{% url 'create_scan_request' %}" class="btn btn-primary">Новый запрос</a>
+        </div>
+        
+        {% if scan_requests %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Репозиторий</th>
+                        <th>Тип сканирования</th>
+                        <th>Глубина</th>
+                        <th>История</th>
+                        <th>Дата создания</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for scan in scan_requests %}
+                    <tr>
+                        <td>{{ scan.id }}</td>
+                        <td class="text-truncate" style="max-width: 300px;">{{ scan.repository_url }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ scan.get_scan_type_display }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ scan.get_scan_depth_display }}</span>
+                        </td>
+                        <td>
+                            {% if scan.include_history %}
+                                <span class="badge bg-success">Да</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Нет</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ scan.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'scan_request_detail' scan.pk %}" class="btn btn-sm btn-outline-primary">
+                                Подробнее
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            У вас еще нет запросов на сканирование. 
+            <a href="{% url 'create_scan_request' %}">Создайте первый запрос</a>.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

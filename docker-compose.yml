@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:14
+    restart: always
+    environment:
+      - POSTGRES_DB=osint
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  osint:
+    build: .
+    command: python /app/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://postgres:password@db:5432/osint
+
+volumes:
+  postgres_data:
