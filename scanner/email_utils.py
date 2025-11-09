@@ -4,24 +4,32 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class EmailNotifier:
 
+class EmailNotifier:
     @staticmethod
-    def send_scan_results_email(user_email, user_name, repository_url, scan_results, scan_request_id):
+    def send_scan_results_email(
+        user_email, user_name, repository_url, scan_results, scan_request_id
+    ):
         """
         Отправляет email с результатами сканирования
         """
         try:
             # Подготавливаем данные для письма
             context = {
-                'user_name': user_name,
-                'repository_url': repository_url,
-                'scan_results': scan_results,
-                'scan_request_id': scan_request_id,
-                'total_findings': len(scan_results),
-                'high_confidence_findings': len([r for r in scan_results if r.confidence == 'high']),
-                'secrets_found': len([r for r in scan_results if r.bug_type == 'SECRETS']),
-                'dependencies_found': len([r for r in scan_results if r.bug_type == 'DEPENDENCIES']),
+                "user_name": user_name,
+                "repository_url": repository_url,
+                "scan_results": scan_results,
+                "scan_request_id": scan_request_id,
+                "total_findings": len(scan_results),
+                "high_confidence_findings": len(
+                    [r for r in scan_results if r.confidence == "high"]
+                ),
+                "secrets_found": len(
+                    [r for r in scan_results if r.bug_type == "SECRETS"]
+                ),
+                "dependencies_found": len(
+                    [r for r in scan_results if r.bug_type == "DEPENDENCIES"]
+                ),
             }
 
             subject = f" Отчет о сканировании репозитория #{scan_request_id}"
@@ -35,10 +43,10 @@ class EmailNotifier:
 ID сканирования: #{scan_request_id}
 
 Общие результаты:
-- Всего находок: {context['total_findings']}
-- С высокой уверенностью: {context['high_confidence_findings']}
-- Секреты: {context['secrets_found']}
-- Зависимости: {context['dependencies_found']}
+- Всего находок: {context["total_findings"]}
+- С высокой уверенностью: {context["high_confidence_findings"]}
+- Секреты: {context["secrets_found"]}
+- Зависимости: {context["dependencies_found"]}
 
 Детали найденных уязвимостей:
 
@@ -47,10 +55,10 @@ ID сканирования: #{scan_request_id}
             for i, result in enumerate(scan_results, 1):
                 status = "Найдено" if result.status else " Не найдено"
                 confidence_badge = {
-                    'high': ' ВЫСОКАЯ',
-                    'medium': ' СРЕДНЯЯ',
-                    'low': ' НИЗКАЯ'
-                }.get(result.confidence, '⚪ НЕИЗВЕСТНО')
+                    "high": " ВЫСОКАЯ",
+                    "medium": " СРЕДНЯЯ",
+                    "low": " НИЗКАЯ",
+                }.get(result.confidence, "⚪ НЕИЗВЕСТНО")
 
                 text_message += f"""
 {i}. {status}
@@ -58,7 +66,7 @@ ID сканирования: #{scan_request_id}
    Строка: {result.str_number}
    Тип: {result.get_bug_type_display()}
    Уверенность: {confidence_badge}
-   Описание: {result.description or 'Нет описания'}
+   Описание: {result.description or "Нет описания"}
 
 """
 
@@ -78,7 +86,9 @@ ID сканирования: #{scan_request_id}
                 fail_silently=False,
             )
 
-            logger.info(f"Email уведомление отправлено пользователю {user_email} для сканирования {scan_request_id}")
+            logger.info(
+                f"Email уведомление отправлено пользователю {user_email} для сканирования {scan_request_id}"
+            )
             return True
 
         except Exception as e:
@@ -100,15 +110,17 @@ ID сканирования: #{scan_request_id}
                 user_name=user.username,
                 repository_url=scan_request.repository_url,
                 scan_results=scan_results,
-                scan_request_id=scan_request.id
+                scan_request_id=scan_request.id,
             )
 
             # Дополнительно можно отправлять уведомление администратору
-            if hasattr(settings, 'ADMIN_EMAIL') and settings.ADMIN_EMAIL:
+            if hasattr(settings, "ADMIN_EMAIL") and settings.ADMIN_EMAIL:
                 EmailNotifier._send_admin_notification(scan_request, scan_results)
 
         except Exception as e:
-            logger.error(f"Ошибка при отправке уведомления о завершении сканирования: {e}")
+            logger.error(
+                f"Ошибка при отправке уведомления о завершении сканирования: {e}"
+            )
 
     @staticmethod
     def _send_admin_notification(scan_request, scan_results):
@@ -131,7 +143,7 @@ ID сканирования: #{scan_request_id}
 - Глубина: {scan_request.get_scan_depth_display()}
 - Найдено уязвимостей: {len(scan_results)}
 
-Время: {scan_request.updated_at.strftime('%Y-%m-%d %H:%M:%S')}
+Время: {scan_request.updated_at.strftime("%Y-%m-%d %H:%M:%S")}
 """
 
             send_mail(
@@ -142,7 +154,9 @@ ID сканирования: #{scan_request_id}
                 fail_silently=True,
             )
 
-            logger.info(f"Уведомление администратору отправлено для сканирования {scan_request.id}")
+            logger.info(
+                f"Уведомление администратору отправлено для сканирования {scan_request.id}"
+            )
 
         except Exception as e:
             logger.error(f"Ошибка при отправке уведомления администратору: {e}")
@@ -179,7 +193,9 @@ ID сканирования: #{scan_request.id}
                 fail_silently=False,
             )
 
-            logger.info(f"Уведомление об ошибке отправлено пользователю {scan_request.user.email}")
+            logger.info(
+                f"Уведомление об ошибке отправлено пользователю {scan_request.user.email}"
+            )
 
         except Exception as e:
             logger.error(f"Ошибка при отправке уведомления об ошибке: {e}")

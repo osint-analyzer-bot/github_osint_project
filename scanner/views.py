@@ -18,13 +18,12 @@ def create_scan_request(request):
 
             logger.info(f"Создан ScanRequest ID: {scan_request.id}")
 
-            # ВРЕМЕННО: синхронный вызов для отладки
+            # синхронный вызов для отладки
             from .services import ScanProcessor
 
             ScanProcessor.process_scan(scan_request.id)
 
-            # Раскомментируйте позже:
-            # ScanProcessor.start_scan_async(scan_request.id)
+            # позже: ScanProcessor.start_scan_async(scan_request.id)
 
             messages.success(
                 request, "Запрос на сканирование успешно создан! Сканирование запущено."
@@ -34,16 +33,24 @@ def create_scan_request(request):
         form = ScanRequestForm()
 
     return render(request, "scanner/create_scan_request.html", {"form": form})
+
+
 @login_required
 def scan_requests_list(request):
-    scan_requests = ScanRequest.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'scanner/scan_requests_list.html', {'scan_requests': scan_requests})
+    scan_requests = ScanRequest.objects.filter(user=request.user).order_by(
+        "-created_at"
+    )
+    return render(
+        request, "scanner/scan_requests_list.html", {"scan_requests": scan_requests}
+    )
+
 
 @login_required
 def scan_request_detail(request, pk):
     scan_request = get_object_or_404(ScanRequest, pk=pk, user=request.user)
     scan_results = scan_request.scan_results.all()
-    return render(request, 'scanner/scan_request_detail.html', {
-        'scan_request': scan_request,
-        'scan_results': scan_results
-    })
+    return render(
+        request,
+        "scanner/scan_request_detail.html",
+        {"scan_request": scan_request, "scan_results": scan_results},
+    )
